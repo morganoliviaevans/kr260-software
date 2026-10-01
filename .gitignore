@@ -222,9 +222,3 @@ __marimo__/
 *.swp     # Vim swap files
 .vscode/  # Editor-specific settings
 *.log
-
-# BitBake (can adjust as necessary later)
-build/         # BitBake's entire output directory — can be tens of GB
-sstate-cache/  # BitBake's shared state cache, speeds up rebuilds
-downloads/     # Cached source tarballs BitBake fetches
-tmp/
