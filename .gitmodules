@@ -1,0 +1,3 @@
+[submodule "fpga"]
+	path = fpga
+	url = git@github.com:morganoliviaevans/kr260-fpga.git

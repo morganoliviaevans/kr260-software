@@ -7,7 +7,7 @@ Just a fun little project to learn the in's and out's of embedded software land.
 ## Purpose
 Application code and, later, a custom Linux image for the AMD Kria KR260 Robotics Starter Kit. The same LED pattern is implemented over progressively more involved interfaces (GPIO, then I2C, then SPI) and in three languages (C, C++, Python), to compare how each layer of the stack works.
 
-Development starts on the stock Kria Ubuntu image. A Yocto-based custom image (kernel, device tree, root filesystem), built directly with Yocto/BitBake + meta-xilinx rather than PetaLinux, is a later milestone.
+Development starts on the stock Kria Ubuntu image. A Yocto-based custom image (kernel, device tree, root filesystem), built directly with Yocto/BitBake + meta-xilinx rather than PetaLinux, is a stretch milestone.
 
 ## Repo relationship
 
@@ -16,61 +16,58 @@ Consumes tagged artifacts from [kr260-fpga](https://github.com/morganoliviaevans
 - `.bin` bitstreams, loaded on the board with `fpgautil`
 - `.xsa` hardware description, used for device tree generation
 
-Never builds against a live branch of that repo.
+## Loading the FPGA Image
+
+- **From Linux on the PS**:
+1. Copy from [kr260-fpga](https://github.com/morganoliviaevans/kr260-fpga): `out/bitstream/kr260.bin`
+2. Unload starter-kit image: `sudo xmutil unloadapp`
+3. Load new image: `sudo fpgautil -b kr260.bin`
+4. **Optional**: Create shell functions for easy loading and unloading, save in `~/.bashrc`:
+
+```
+fpga-load() { sudo xmutil unloadapp && sudo fpgautil -b "$1"; } # Usage: fpga-load ~/kria/kr260-software/fpga/out/bitstream/kr260.bin
+
+# or hardcoded if the path isn't going to change:
+fpga-load() { sudo xmutil unloadapp && sudo fpgautil -b ~/kria/kr260-software/fpga/out/bitstream/kr260.bin; } # Usage: fpga-load
+
+fpga-default() { sudo xmutil unloadapp && sudo xmutil loadapp k26-starter-kits; }
+```
 
 ## Toolchain
 
-| Component       | Version                                      |
-|-----------------|----------------------------------------------|
-| Vivado / Vitis  | 2025.2 (matches kr260-fpga)                  |
-| Board OS        | Kria Ubuntu (stock image)                    |
-| Yocto / BitBake | TBD                                          |
-| meta-xilinx     | TBD, pinned to the 2025.2 release branch     |
-| Dependencies    | Nix (planned)                                |
+| Component       | Version                      |
+|-----------------|------------------------------|
+| Vivado / Vitis  | 2025.2                       |
+| Board OS        | Kria Ubuntu                  |
+| Yocto / BitBake | TBD                          |
+| meta-xilinx     | TBD                          |
+| Dependencies    | Nix (TBD)                    |
 
 ## Board Layout
 
 ```
 ~/kria/
   kr260-software/   # this repo; edit on host, push, git pull on the board
-  bitstreams/       # .bin files copied from kr260-fpga releases
+  fpga/             # .bin files copied from kr260-fpga releases
 ```
 
 ## Hardware
 
 | Part     | Interface | Used in    | Role                                        |
 |----------|-----------|------------|---------------------------------------------|
-| 8x LED + 220-330 Ω resistors | PMOD GPIO | Tasks 3-4 | Pattern output, driven directly by PL pins |
-| MCP23017 | I2C       | Tasks 5-6  | 16-bit GPIO expander driving the LEDs       |
-| BME280   | SPI       | Task 7     | Temperature/humidity/pressure sensor        |
+| 8x LED + 330 Ω resistors | PMOD GPIO | Tasks 3-8 | Pattern output, driven directly by PL pins |
+| MCP23017 | I2C       | Tasks 5-8  | 16-bit GPIO expander driving the LEDs       |
+| BME280   | SPI       | Tasks 6 & 8     | Temperature, humidity, pressure sensor        |
 
 ## Project Tasks
 
-| # | Task | FPGA image | Status |
-|---|------|------------|--------|
-| 1 | Define the LED behavior (e.g. spiral, bounce, binary counter) | n/a | Done |
-| 2 | Install Vivado and Vitis 2025.2 on the Ubuntu build machine (FPGA side) | n/a | Done |
-| 3 | Load the initial FPGA image; verify breadboard wiring with the PMOD1-4 LED chaser test | kr260-fpga PR #1 (hardware-only chaser) | In progress |
-| 4 | Load a new FPGA image exposing PS GPIO over EMIO on the PMOD pins; implement the pattern from software. C, C++, Python | EMIO GPIO → PMOD | Not started |
-| 5 | Load an image with the AMD AXI I2C IP pinned out to a PMOD; implement the pattern on LEDs driven by the MCP23017. C, C++, Python | AXI I2C → PMOD | Not started |
-| 6 | Load an image with a custom I2C controller in the PL, exposed to software as memory-mapped registers; implement the pattern via the MCP23017. C, C++, Python | Custom I2C | Not started |
-| 7 | Load an image with a custom SPI controller in the PL; read the BME280 and display its readings as an LED pattern. C, C++, Python | Custom SPI | Not started |
-
-### Notes
-
-- PMOD headers connect to PL pins, so software reaches them through EMIO (or AXI GPIO). MIO pins are hardwired to PS peripherals and cannot drive the PMODs.
-- MCP23017: tie `RESET` high and `A2`-`A0` to fixed levels (all low gives I2C address `0x20`). SDA/SCL need external pull-up resistors to 3.3 V. Pins power up as inputs (`IODIR` = `0xFF`), so write `0x00` to `IODIRA` before driving LEDs.
-- BME280 is a 3.3 V part; will need to use a breakout that exposes the SPI pins (`CSB`, `SDO`).
-- The stock-image bitstream does not persist across reboots until [kr260-fpga](https://github.com/morganoliviaevans/kr260-fpga) ships a device tree overlay and `shell.json` for `xmutil loadapp`.
-
-### Stretch goals
-
-- Custom Yocto image
-- RTOS (e.g. FreeRTOS) on the Cortex-R5F real-time cores
-- CI gating: linting, builds, and tests on every PR
-- Hardware-software unit testing
-
-## Status
-
-- Initial FPGA image received. Board boots stock Ubuntu, reachable over SSH and serial console.
-- Current Task: 3
+| # | Task | Languages  | FPGA Image | Status |
+|---|------|----------|------------|--------|
+| 1 | Define LED behavior | n/a | n/a | Done |
+| 2 | Install Vivado and Vitis 2025.2 on the Ubuntu build machine | n/a | n/a | Done |
+| 3 | Load initial FPGA image; verify breadboard wiring with the PMOD1-4 LED chaser test | n/a | kr260-fpga PR #1 | Done |
+| 4 | Load new image exposing PS GPIO over EMIO on PMOD2 pins; implement the pattern from software | C, C++, Python | EMIO GPIO → PMOD2 | **In Progress** |
+| 5 | AMD AXI I2C IP pinned out to PMOD3; implement the pattern on LEDs driven by the MCP23017 | C, C++, Python | AXI I2C → PMOD | Not started |
+| 6 | AMD AXI Quad SPI pinned out to PMOD4; read the BME280 and display its readings as an LED pattern | C, C++, Python | AXI SPI → PMOD | Not started |
+| 7 | Load new image with custom I2C; exposed to software as memory-mapped registers; implement the pattern via the MCP23017 | C, C++, Python | Custom I2C | Not started |
+| 8 | Load new image with custom SPI; read the BME280 and display its readings as an LED pattern | C, C++, Python | Custom SPI | Not started |
